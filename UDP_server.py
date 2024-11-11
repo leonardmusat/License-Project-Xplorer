@@ -1,62 +1,134 @@
 import socket
 import cv2
 import numpy as np
+import threading
+import keyboard
+import time
 
 # Set the server IP and port
-server_ip = "192.168.100.40"  # Listen on all available interfaces
-server_port = 8888
-CHUNK_LENGTH = 1460  # Size of each chunk, matching ESP32 code
+ip = "192.168.100.37"  # Listen on all available interfaces
+state = 0b0000
 
-# Create a UDP socket
-udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-udp_socket.bind((server_ip, server_port))
+def udp_stream(server_ip):
+    server_port = 8888
+    CHUNK_LENGTH = 1460  # Size of each chunk, matching ESP32 code
 
-print(f"UDP server is listening on {server_ip}:{server_port}")
+    # Create a UDP socket
+    udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    udp_socket.bind((server_ip, server_port))
 
-# Buffer to hold the image data (using a list to avoid resizing issues)
-image_chunks = []
+    print(f"UDP server is listening on {server_ip}:{server_port}")
 
-# Variables for FPS calculation
-nb_frames = 0
-fps_last_time = cv2.getTickCount()
+    # Buffer to hold the image data (using a list to avoid resizing issues)
+    image_chunks = []
 
-while True:
-    # Receive data from the UDP socket
-    data, addr = udp_socket.recvfrom(CHUNK_LENGTH)
+    while True:
+        # Receive data from the UDP socket
+        data, addr = udp_socket.recvfrom(CHUNK_LENGTH)
 
-    # Check for the start of a JPEG image (FFD8FF)
-    if len(data) >= 3 and data[0] == 255 and data[1] == 216 and data[2] == 255:
-        image_chunks = []  # Clear the list at the start of a new image
+        # Check for the start of a JPEG image (FFD8FF)
+        if len(data) >= 3 and data[0] == 255 and data[1] == 216 and data[2] == 255:
+            image_chunks = []  # Clear the list at the start of a new image
 
-    # Append the received data chunk to the list
-    image_chunks.append(data)
+        # Append the received data chunk to the list
+        image_chunks.append(data)
 
-    # Check for the end of a JPEG image (FFD9)
-    if len(data) >= 2 and data[-2] == 255 and data[-1] == 217:
-        # Concatenate all chunks into a single byte array
-        image_buffer = b''.join(image_chunks)
+        # Check for the end of a JPEG image (FFD9)
+        if len(data) >= 2 and data[-2] == 255 and data[-1] == 217:
+            # Concatenate all chunks into a single byte array
+            image_buffer = b''.join(image_chunks)
 
-        # Decode the complete image
-        jpg_data = np.frombuffer(image_buffer, dtype=np.uint8)
-        frame = cv2.imdecode(jpg_data, cv2.IMREAD_COLOR)
+            # Decode the complete image
+            jpg_data = np.frombuffer(image_buffer, dtype=np.uint8)
+            frame = cv2.imdecode(jpg_data, cv2.IMREAD_COLOR)
 
-        # Display the image if it was decoded successfully
-        if frame is not None:
-            cv2.imshow('Received Image', frame)
+            # Display the image if it was decoded successfully
+            if frame is not None:
+                cv2.imshow('Received Image', frame)
 
-        # FPS calculation and display
-        nb_frames += 1
-        current_time = cv2.getTickCount()
-        time_diff = (current_time - fps_last_time) / cv2.getTickFrequency()
-        if time_diff >= 1.0:
-            print(f"FPS: {nb_frames}")
-            nb_frames = 0
-            fps_last_time = current_time
 
-        # Exit the loop if 'q' is pressed
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            # Exit the loop if 'q' is pressed
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
 
-# Clean up resources
-udp_socket.close()
-cv2.destroyAllWindows()
+    # Clean up resources
+    udp_socket.close()
+    cv2.destroyAllWindows()
+
+
+def tcp_connection(server_ip):
+    # Initial state (binary: 0000)
+    # Define server IP address and port
+    server_port = 8889
+
+    # Define each key with its respective bit position
+    key_map = {
+        'w': 0b1000,  # 1st bit
+        'a': 0b0100,  # 2nd bit
+        's': 0b0010,  # 3rd bit
+        'd': 0b0001   # 4th bit 
+    }
+
+    # Create a TCP/IP socket
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    # Bind the socket to the address and port
+    server_socket.bind((server_ip, server_port))
+
+    # Listen for incoming connections
+    server_socket.listen(2)
+    print(f"Listening for connections on {server_ip}:{server_port}...")
+
+    # Accept a single incoming connection
+    client_socket, client_address = server_socket.accept()
+    print(f"Connected to {client_address}")
+
+    # Function to update the state when a key is pressed
+    def press_key(key):
+        global state
+        if key in key_map:
+            state |= key_map[key]  # Set the bit for the key
+            client_socket.sendall((format(state, '04b') + '\n').encode('utf-8'))
+            time.sleep(0.1)
+            print(f"Message {state} was sent")
+
+    # Function to update the state when a key is released
+    def release_key(key):
+        global state
+        if key in key_map:
+            state &= ~key_map[key]  # Clear the bit for the key
+            client_socket.sendall((format(state, '04b') + '\n').encode('utf-8'))
+            time.sleep(0.1)
+            print(f"Message {state} was sent")
+            
+    def code_moves(all_key):
+        # Set up event listeners for each key
+        for key in all_key.keys():
+            keyboard.on_press_key(key, lambda e, k=key: press_key(k))
+            keyboard.on_release_key(key, lambda e, k=key: release_key(k))
+
+        # Wait for 'esc' to exit
+        keyboard.wait('esc')
+
+    try:
+        while True:
+            code_moves(key_map)
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+    finally:
+        # Close the connection
+        client_socket.close()
+        server_socket.close()
+        print("Connection closed.")
+
+
+thread1 = threading.Thread(target=udp_stream, args=(ip,))
+thread2 = threading.Thread(target=tcp_connection, args=(ip,))
+
+thread1.start()
+thread2.start()
+
+thread1.join()
+thread2.join()
