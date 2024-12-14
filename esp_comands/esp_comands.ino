@@ -1,5 +1,7 @@
 #include <WiFi.h>
 
+#define sound_speed 0.034
+
 // Replace these with your network credentials
 const char* ssid = "DIGI-AG";
 const char* password = "12345678";
@@ -20,6 +22,14 @@ int enable3Pin = 19;
 int motor4Pin1 = 21; 
 int motor4Pin2 = 22; 
 int enable4Pin = 23; 
+
+int trigPin = 12;
+int echoPin = 13;
+
+long duration;
+float distanceCm;
+
+void verify_distance_right(float *dist, long *duration);
 
 void setup() {
   // Start the serial monitor
@@ -66,6 +76,9 @@ void setup() {
   pinMode(motor4Pin2, OUTPUT);
   pinMode(enable4Pin, OUTPUT);
 
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+
 }
 
 void loop(){
@@ -80,6 +93,13 @@ void loop(){
 
           // Convert the binary string to an integer
           int command = strtol(response.c_str(), nullptr, 2);
+
+          if (response.charAt(response.length() - 1) == '1'){
+            verify_distance_right(&distanceCm, &duration);
+            if (distanceCm < 10){
+              command = command - 1;
+            }
+          }
 
           // Now you can use `command` as an integer with binary bits
           Serial.print("Converted command: ");
@@ -259,4 +279,16 @@ void loop(){
       }
       delay(100);  // Small delay to avoid excessive checking
 }
+}
+
+void verify_distance_right(float *dist, long *duration){
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  // Sets the trigPin on HIGH state for 10 micro seconds
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  *duration = pulseIn(echoPin, HIGH);
+  *dist = (*duration) * sound_speed/2.0;
 }

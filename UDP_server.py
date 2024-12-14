@@ -61,8 +61,7 @@ def blitz(server_ip):
 
     # Define each key with its respective bit position
     key_map_blitz = {
-        'k': 0b00,  # 1st bit
-        'l': 0b01,  # 2nd bit
+        'k': 0b1111,  # 1st bit
     }
 
     key_map_commands = {
@@ -128,79 +127,10 @@ def blitz(server_ip):
         print(f"Error: {e}")
 
     finally:
-        # Close the connection
+        # Close the connectionkkk
         client_socket.close()
         server_socket.close()
         print("Connection closed.")
-
-
-def tcp_connection(server_ip):
-    # Initial state (binary: 0000)
-    # Define server IP address and port
-    server_port = 8890
-
-    # Define each key with its respective bit position
-    key_map = {
-        'w': 0b1000,  # 1st bit
-        'a': 0b0100,  # 2nd bit
-        's': 0b0010,  # 3rd bit
-        'd': 0b0001   # 4th bit 
-    }
-
-    # Create a TCP/IP socket
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-    # Bind the socket to the address and port
-    server_socket.bind((server_ip, server_port))
-
-    # Listen for incoming connections
-    server_socket.listen(2)
-    print(f"Listening for connections on {server_ip}:{server_port}...")
-
-    # Accept a single incoming connection
-    client_socket, client_address = server_socket.accept()
-    print(f"Connected to {client_address}")
-
-    # Function to update the state when a key is pressed
-    def press_key(key):
-        global state
-        if key in key_map:
-            state |= key_map[key]  # Set the bit for the key
-            client_socket.sendall((format(state, '04b') + '\n').encode('utf-8'))
-            time.sleep(0.1)
-            print(f"Message {state} was sent")
-
-    # Function to update the state when a key is released
-    def release_key(key):
-        global state
-        if key in key_map:
-            state &= ~key_map[key]  # Clear the bit for the key
-            client_socket.sendall((format(state, '04b') + '\n').encode('utf-8'))
-            time.sleep(0.1)
-            print(f"Message {state} was sent")
-            
-    def code_moves(all_key):
-        # Set up event listeners for each key
-        for key in all_key.keys():
-            keyboard.on_press_key(key, lambda e, k=key: press_key(k))
-            keyboard.on_release_key(key, lambda e, k=key: release_key(k))
-
-        # Wait for 'esc' to exit
-        keyboard.wait('esc')
-
-    try:
-        while True:
-            code_moves(key_map)
-
-    except Exception as e:
-        print(f"Error: {e}")
-
-    finally:
-        # Close the connection
-        client_socket.close()
-        server_socket.close()
-        print("Connection closed.")
-
 
 thread1 = threading.Thread(target=udp_stream, args=(ip,))
 thread2 = threading.Thread(target=blitz, args=(ip,))
