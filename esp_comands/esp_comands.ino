@@ -147,19 +147,93 @@ void loop(){
                 digitalWrite(motor4Pin2, LOW); 
                 break;
               case 0b1010:
-                Serial.println("Stop or No Movement");
+                //turn around 
+                digitalWrite(enable1Pin, HIGH);
+                digitalWrite(motor1Pin1, LOW);
+                digitalWrite(motor1Pin2, HIGH);
+                digitalWrite(enable2Pin, HIGH);
+                digitalWrite(motor2Pin1, HIGH);
+                digitalWrite(motor2Pin2, LOW);
+                digitalWrite(enable3Pin, HIGH);
+                digitalWrite(motor3Pin1, HIGH);
+                digitalWrite(motor3Pin2, LOW);
+                digitalWrite(enable4Pin, HIGH);
+                digitalWrite(motor4Pin1, LOW);
+                digitalWrite(motor4Pin2, HIGH);
                 break;
+              case 0b0101:
+                //turn around
+                digitalWrite(enable1Pin, HIGH);
+                digitalWrite(motor1Pin1, LOW);
+                digitalWrite(motor1Pin2, HIGH);
+                digitalWrite(enable2Pin, HIGH);
+                digitalWrite(motor2Pin1, HIGH);
+                digitalWrite(motor2Pin2, LOW);
+                digitalWrite(enable3Pin, HIGH);
+                digitalWrite(motor3Pin1, HIGH);
+                digitalWrite(motor3Pin2, LOW);
+                digitalWrite(enable4Pin, HIGH);
+                digitalWrite(motor4Pin1, LOW);
+                digitalWrite(motor4Pin2, HIGH);
               case 0b1001:
-                Serial.println("Move Forward-Right");
+                //FORWARD-RIGHT
+                digitalWrite(enable1Pin, HIGH);
+                digitalWrite(motor1Pin1, LOW);
+                digitalWrite(motor1Pin2, HIGH);
+                digitalWrite(enable2Pin, LOW);
+                digitalWrite(motor2Pin1, LOW); //TO BE DELETED 
+                digitalWrite(motor2Pin2, HIGH); //TO BE DELETED
+                digitalWrite(enable3Pin, HIGH);
+                digitalWrite(motor3Pin1, LOW);
+                digitalWrite(motor3Pin2, HIGH);
+                digitalWrite(enable4Pin, LOW); 
+                digitalWrite(motor4Pin1, LOW);  //TO BE DELETED
+                digitalWrite(motor4Pin2, HIGH);  //TO BE DELETED
                 break;
               case 0b0110:
-                Serial.println("Move Backward-Left");
+                //BACKWARD LEFT
+                digitalWrite(enable1Pin, HIGH);
+                digitalWrite(motor1Pin1, HIGH);
+                digitalWrite(motor1Pin2, LOW);
+                digitalWrite(enable2Pin, LOW);
+                digitalWrite(motor2Pin1, HIGH); //TO BE DELETED
+                digitalWrite(motor2Pin2, LOW); //TO BE DELETED
+                digitalWrite(enable3Pin, HIGH);
+                digitalWrite(motor3Pin1, HIGH);
+                digitalWrite(motor3Pin2, LOW); 
+                digitalWrite(enable4Pin, LOW);
+                digitalWrite(motor4Pin1, HIGH); //TO BE DELETED
+                digitalWrite(motor4Pin2, LOW); //TO BE DELETED
                 break;
               case 0b1100:
-                Serial.println("Move Forward-Left");
+                //forward left
+                digitalWrite(enable1Pin, LOW);
+                digitalWrite(motor1Pin1, LOW); //TO BE DELETED
+                digitalWrite(motor1Pin2, HIGH); //TO BE DELETED
+                digitalWrite(enable2Pin, HIGH);
+                digitalWrite(motor2Pin1, LOW);
+                digitalWrite(motor2Pin2, HIGH);
+                digitalWrite(enable3Pin, LOW);
+                digitalWrite(motor3Pin1, LOW); //TO BE DELETED
+                digitalWrite(motor3Pin2, HIGH); //TO BE DELETED
+                digitalWrite(enable4Pin, HIGH);
+                digitalWrite(motor4Pin1, LOW); 
+                digitalWrite(motor4Pin2, HIGH);              
                 break;
               case 0b0011:
-                Serial.println("Move Backward-Right");
+                //BACKWARDS RIGHT
+                digitalWrite(enable1Pin, LOW); 
+                digitalWrite(motor1Pin1, HIGH); //TO BE DELETED
+                digitalWrite(motor1Pin2, LOW); //TO BE DELETED
+                digitalWrite(enable2Pin, HIGH);
+                digitalWrite(motor2Pin1, HIGH);
+                digitalWrite(motor2Pin2, LOW);
+                digitalWrite(enable3Pin, LOW);
+                digitalWrite(motor3Pin1, HIGH);
+                digitalWrite(motor3Pin2, LOW);
+                digitalWrite(enable4Pin, HIGH);
+                digitalWrite(motor4Pin1, HIGH); //TO BE DELETED
+                digitalWrite(motor4Pin2, LOW); //TO BE DELETED
                 break;
               case 0b1111:
                 Serial.println("Emergency Stop or Special Behavior");
