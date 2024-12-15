@@ -7,8 +7,9 @@ import time
 
 # Set the server IP and port
 ip = "192.168.100.40"  # Listen on all available interfaces
-state_for_blitz = 0b00
 state_for_commands = 0b00
+state_for_commands_1 = 0b00
+repeat = True
 
 def udp_stream(server_ip):
     server_port = 8888
@@ -60,11 +61,8 @@ def blitz(server_ip):
     server_port = 8889
 
     # Define each key with its respective bit position
-    key_map_blitz = {
-        'k': 0b1111,  # 1st bit
-    }
-
     key_map_commands = {
+        'k': 0b1111,  # 1st bit
         'w': 0b1000,  # 1st bit
         'a': 0b0100,  # 2nd bit
         's': 0b0010,  # 3rd bit
@@ -78,7 +76,7 @@ def blitz(server_ip):
     server_socket.bind((server_ip, server_port))
 
     # Listen for incoming connections
-    server_socket.listen(2)
+    server_socket.listen(3)
     print(f"Listening for connections on {server_ip}:{server_port}...")
 
     # Accept a single incoming connection
@@ -89,30 +87,30 @@ def blitz(server_ip):
     def press_key(key):
         global state_for_blitz
         global state_for_commands
-        if key in key_map_blitz:
-            state_for_blitz = key_map_blitz[key]  # Set the bit for the key
-            client_socket.sendall((format(state_for_blitz, '02b') + '\n').encode('utf-8'))
-            time.sleep(0.1)
-            print(f"Message {state_for_blitz} was sent")
-        elif key in key_map_commands:
+        global state_for_commands_1 
+        global repeat
+        if key in key_map_commands:
             state_for_commands |= key_map_commands[key]  # Set the bit for the key
-            client_socket.sendall((format(state_for_commands, '04b') + '\n').encode('utf-8'))
-            time.sleep(0.1)
-            print(f"Message {state_for_commands} was sent")
+            if state_for_commands != state_for_commands_1 or repeat == True:
+                repeat = False
+                state_for_commands_1 = state_for_commands
+                client_socket.sendall((format(state_for_commands, '04b') + '\n').encode('utf-8'))
+                time.sleep(0.1)
+                print(f"Message {state_for_commands} was sent")
 
     def release_key(key):
         global state_for_commands
+        global repeat
+        repeat = True
         if key in key_map_commands:
             state_for_commands &= ~key_map_commands[key]  # Clear the bit for the key
             client_socket.sendall((format(state_for_commands, '04b') + '\n').encode('utf-8'))
             time.sleep(0.1)
             print(f"Message {state_for_commands} was sent")
 
-    def code_moves(key1, key2):
+    def code_moves(key1):
         # Set up event listeners for each key
         for key in key1.keys():
-            keyboard.on_press_key(key, lambda e, k=key: press_key(k))
-        for key in key2.keys():
             keyboard.on_press_key(key, lambda e, k=key: press_key(k))
             keyboard.on_release_key(key, lambda e, k=key: release_key(k))
 
@@ -121,7 +119,7 @@ def blitz(server_ip):
 
     try:
         while True:
-            code_moves(key_map_blitz, key_map_commands)
+            code_moves(key_map_commands)
 
     except Exception as e:
         print(f"Error: {e}")
