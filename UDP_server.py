@@ -4,12 +4,13 @@ import numpy as np
 import threading
 import keyboard
 import time
+from datetime import datetime, timedelta
 
 # Set the server IP and port
 ip = "192.168.100.40"  # Listen on all available interfaces
 state_for_commands = 0b00
 state_for_commands_1 = 0b00
-repeat = True
+repeat = datetime.now()
 
 def udp_stream(server_ip):
     server_port = 8888
@@ -57,12 +58,11 @@ def udp_stream(server_ip):
     udp_socket.close()
     cv2.destroyAllWindows()
 
-def blitz(server_ip):
+def commands(server_ip):
     server_port = 8889
 
     # Define each key with its respective bit position
     key_map_commands = {
-        'k': 0b1111,  # 1st bit
         'w': 0b1000,  # 1st bit
         'a': 0b0100,  # 2nd bit
         's': 0b0010,  # 3rd bit
@@ -91,17 +91,17 @@ def blitz(server_ip):
         global repeat
         if key in key_map_commands:
             state_for_commands |= key_map_commands[key]  # Set the bit for the key
-            if state_for_commands != state_for_commands_1 or repeat == True:
-                repeat = False
+            duration = timedelta(seconds=0.5)
+            now = datetime.now()
+            if state_for_commands != state_for_commands_1 or now - repeat > duration:
+                repeat = now
                 state_for_commands_1 = state_for_commands
                 client_socket.sendall((format(state_for_commands, '04b') + '\n').encode('utf-8'))
                 time.sleep(0.1)
                 print(f"Message {state_for_commands} was sent")
-
+ 
     def release_key(key):
         global state_for_commands
-        global repeat
-        repeat = True
         if key in key_map_commands:
             state_for_commands &= ~key_map_commands[key]  # Clear the bit for the key
             client_socket.sendall((format(state_for_commands, '04b') + '\n').encode('utf-8'))
@@ -130,11 +130,64 @@ def blitz(server_ip):
         server_socket.close()
         print("Connection closed.")
 
+def blitz(server_ip):
+    server_port = 8887
+    trigger = 0b1111
+
+    # Define each key with its respective bit position
+    key_map = ['k'] 
+
+    # Create a TCP/IP socket
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    # Bind the socket to the address and port
+    server_socket.bind((server_ip, server_port))
+
+    # Listen for incoming connections
+    server_socket.listen(3)
+    print(f"Listening for connections on {server_ip}:{server_port}...")
+
+    # Accept a single incoming connection
+    client_socket, client_address = server_socket.accept()
+    print(f"Connected to {client_address}")
+
+    # Function to update the state when a key is pressed
+    def press_key(key):
+        if key in key_map:
+            client_socket.sendall((format(trigger, '04b') + '\n').encode('utf-8'))
+            time.sleep(0.1)
+            print(f"Message {trigger} was sent")
+
+    def code_moves(key1):
+        # Set up event listeners for each key
+        for key in key1:
+            keyboard.on_press_key(key, lambda e, k=key: press_key(k))
+
+        # Wait for 'esc' to exit
+        keyboard.wait('esc')
+
+    try:
+        while True:
+            code_moves(key_map)
+
+    except Exception as e:
+        print(f"Error: {e}")
+
+    finally:
+        # Close the connection
+        client_socket.close()
+        server_socket.close()
+        print("Connection closed.")
+
 thread1 = threading.Thread(target=udp_stream, args=(ip,))
-thread2 = threading.Thread(target=blitz, args=(ip,))
+thread2 = threading.Thread(target=commands, args=(ip,))
+thread3 = threading.Thread(target=blitz, args=(ip,))
+
 
 thread1.start()
 thread2.start()
+thread3.start()
 
 thread1.join()
 thread2.join()
+thread3.join()
