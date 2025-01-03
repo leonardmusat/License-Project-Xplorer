@@ -1,18 +1,18 @@
 #include <WiFi.h>
 
-#define sound_speed 0.034
+#define sound_speed 0.034f
 
 // Replace these with your network credentials
-const char* ssid = "DIGI-AG";
-const char* password = "12345678";
+const char* ssid = "DIGI-RauT";
+const char* password = "mD9aB8b7";
 const int serverPort = 8889;
-const char* serverIP = "192.168.100.40";
+const char* serverIP = "192.168.100.47";
 
 WiFiClient client;
 
 int motor1Pin1 = 27; 
 int motor1Pin2 = 26; 
-int enable1Pin = 14; 
+int enable1Pin = 25; 
 int motor2Pin1 = 4; 
 int motor2Pin2 = 5; 
 int enable2Pin = 16; 
@@ -25,11 +25,14 @@ int enable4Pin = 23;
 
 int trigPin = 12;
 int echoPin = 13;
+int trigPin_left = 0;
+int echoPin_left = 2;
 
 long duration;
 float distanceCm;
+float distanceCm_left;
 
-void verify_distance_right(float *dist, long *duration);
+void verify_distance(float *dist, long *duration, int trigPin, int echoPin);
 
 void setup() {
   // Start the serial monitor
@@ -79,6 +82,8 @@ void setup() {
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
 
+  pinMode(trigPin_left, OUTPUT);
+  pinMode(echoPin_left, INPUT);
 }
 
 void loop(){
@@ -95,9 +100,17 @@ void loop(){
           int command = strtol(response.c_str(), nullptr, 2);
 
           if (response.charAt(response.length() - 1) == '1'){
-            verify_distance_right(&distanceCm, &duration);
+            verify_distance(&distanceCm, &duration, trigPin, echoPin);
             if (distanceCm < 10){
               command = command - 1;
+            }
+          }
+          else if(response.charAt(1) == '1'){
+            verify_distance(&distanceCm_left, &duration, trigPin_left, echoPin_left);
+            if (distanceCm_left < 10){
+              Serial.println(distanceCm);
+               Serial.println(distanceCm_left);
+              command = command - 4;
             }
           }
 
@@ -281,7 +294,7 @@ void loop(){
 }
 }
 
-void verify_distance_right(float *dist, long *duration){
+void verify_distance(float *dist, long *duration, int trigPin, int echoPin){
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
   // Sets the trigPin on HIGH state for 10 micro seconds

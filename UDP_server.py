@@ -7,7 +7,7 @@ import time
 from datetime import datetime, timedelta
 
 # Set the server IP and port
-ip = "192.168.100.40"  # Listen on all available interfaces
+ip = "192.168.100.47"  # Listen on all available interfaces
 state_for_commands = 0b00
 state_for_commands_1 = 0b00
 repeat = datetime.now()
@@ -91,7 +91,7 @@ def commands(server_ip):
         global repeat
         if key in key_map_commands:
             state_for_commands |= key_map_commands[key]  # Set the bit for the key
-            duration = timedelta(seconds=0.5)
+            duration = timedelta(seconds=0.2)
             now = datetime.now()
             if state_for_commands != state_for_commands_1 or now - repeat > duration:
                 repeat = now
@@ -182,7 +182,6 @@ def blitz(server_ip):
 thread1 = threading.Thread(target=udp_stream, args=(ip,))
 thread2 = threading.Thread(target=commands, args=(ip,))
 thread3 = threading.Thread(target=blitz, args=(ip,))
-
 
 thread1.start()
 thread2.start()
