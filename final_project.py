@@ -15,6 +15,25 @@ ip = "192.168.100.81"  # Listen on all available interfaces
 state_for_commands = 0b00
 state_for_commands_1 = 0b00
 repeat = datetime.now()
+stop_flag = False
+
+# def reconnect_client(client_socket_f, client_address_f, client_connected_f, server_socket_f):
+#     while not client_connected_f:
+#         try:
+#             print("Waiting for client to reconnect...")
+#             client_socket_f, client_address_f = server_socket_f.accept()
+#             print(f"Reconnected to {client_address_f}")
+#             client_connected_f = True
+#         except Exception as e:
+#             print(f"Reconnection failed: {e}")
+#             time.sleep(1)  # Wait before retrying
+
+def on_esc(e):
+    global stop_flag
+    stop_flag = True
+    print("Escape key pressed. Stopping the server...")
+
+keyboard.on_press_key('esc', on_esc)
 
 def udp_stream(server_ip):
     server_port = 8888
@@ -29,7 +48,7 @@ def udp_stream(server_ip):
     # Buffer to hold the image data (using a list to avoid resizing issues)
     image_chunks = []
 
-    while True:
+    while not stop_flag:
         # Receive data from the UDP socket
         data, addr = udp_socket.recvfrom(CHUNK_LENGTH)
 
@@ -86,12 +105,27 @@ def commands(server_ip):
     # Accept a single incoming connection
     client_socket, client_address = server_socket.accept()
     print(f"Connected to {client_address}")
+    client_connected = True
+
+    def reconnect_client():
+        nonlocal client_socket, client_connected
+        while not client_connected:
+            try:
+                print("Waiting for client to reconnect...")
+                client_socket, client_address = server_socket.accept()
+                print(f"Reconnected to {client_address}")
+                client_connected = True
+            except Exception as e:
+                print(f"Reconnection failed: {e}")
+                time.sleep(1)  # Wait before retrying
+
 
     # Function to update the state when a key is pressed
     def press_key(key):
         global state_for_blitz
         global state_for_commands
         global state_for_commands_1 
+        nonlocal client_connected
         global repeat
         if key in key_map_commands:
             state_for_commands |= key_map_commands[key]  # Set the bit for the key
@@ -100,17 +134,37 @@ def commands(server_ip):
             if state_for_commands != state_for_commands_1 or now - repeat > duration:
                 repeat = now
                 state_for_commands_1 = state_for_commands
-                client_socket.sendall((format(state_for_commands, '04b') + '\n').encode('utf-8'))
-                time.sleep(0.1)
-                print(f"Message {state_for_commands} was sent")
+                try:
+                    if client_connected:
+                        client_socket.sendall((format(state_for_commands, '04b') + '\n').encode('utf-8'))
+                        time.sleep(0.1)
+                        print(f"Message {state_for_commands} was sent")
+                    else:
+                        print("Client not connected; cannot send data.")
+                except (BrokenPipeError, ConnectionResetError):
+                    print("Removing disconnected client.")
+                    client_socket.close() # Remove invalid client
+                    client_connected = False
+                    reconnect_client()
+                    #reconnect_client(client_socket, client_address, client_connected, server_socket)
+            #time.sleep(1)  # Adjust the frequency as needed
  
     def release_key(key):
         global state_for_commands
+        nonlocal client_connected
         if key in key_map_commands:
             state_for_commands &= ~key_map_commands[key]  # Clear the bit for the key
-            client_socket.sendall((format(state_for_commands, '04b') + '\n').encode('utf-8'))
-            time.sleep(0.1)
-            print(f"Message {state_for_commands} was sent")
+            try:
+                if client_connected:
+                    client_socket.sendall((format(state_for_commands, '04b') + '\n').encode('utf-8'))
+                    time.sleep(0.1)
+                    print(f"Message {state_for_commands} was sent")
+            except (BrokenPipeError, ConnectionResetError):
+                print("Client disconnected during release_key.")
+                client_connected = False
+                client_socket.close()
+                reconnect_client()
+                #reconnect_client(client_socket, client_address, client_connected, server_socket)
 
     def code_moves(key1):
         # Set up event listeners for each key
@@ -121,18 +175,21 @@ def commands(server_ip):
         # Wait for 'esc' to exit
         keyboard.wait('esc')
 
+   # Main loop
     try:
-        while True:
+
+        while not stop_flag:
             code_moves(key_map_commands)
+            time.sleep(0.1)  # Prevent high CPU usage
 
     except Exception as e:
         print(f"Error: {e}")
 
     finally:
-        # Close the connectionkkk
+        # Close the connections
         client_socket.close()
         server_socket.close()
-        print("Connection closed.")
+        print("Connections closed.")
 
 def blitz(server_ip):
     server_port = 8887
@@ -171,7 +228,7 @@ def blitz(server_ip):
         keyboard.wait('esc')
 
     try:
-        while True:
+        while not stop_flag:
             code_moves(key_map)
 
     except Exception as e:
