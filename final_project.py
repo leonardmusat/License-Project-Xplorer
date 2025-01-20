@@ -9,13 +9,15 @@ import tkinter as tk
 from tkinter.scrolledtext import ScrolledText
 from PIL import Image, ImageTk
 import sys
+import torch
 
 # Set the server IP and port
-ip = "192.168.100.81"  # Listen on all available interfaces
+ip = "192.168.100.40"  # Listen on all available interfaces
 state_for_commands = 0b00
 state_for_commands_1 = 0b00
 repeat = datetime.now()
 stop_flag = False
+AI_flag = False
 
 # def reconnect_client(client_socket_f, client_address_f, client_connected_f, server_socket_f):
 #     while not client_connected_f:
@@ -33,11 +35,21 @@ def on_esc(e):
     stop_flag = True
     print("Escape key pressed. Stopping the server...")
 
+def on_space(e):
+    global AI_flag
+    if AI_flag == False:
+        AI_flag = True
+    else:
+        AI_flag = False
+
 keyboard.on_press_key('esc', on_esc)
+keyboard.on_press_key('space', on_space)
 
 def udp_stream(server_ip):
     server_port = 8888
     CHUNK_LENGTH = 1460  # Size of each chunk, matching ESP32 code
+    model = torch.hub.load('ultralytics/yolov5', 'yolov5s')
+    target_object = "person"
 
     # Create a UDP socket
     udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -70,7 +82,61 @@ def udp_stream(server_ip):
 
             # Display the image if it was decoded successfully
             if frame is not None:
-                cv2.imshow('Received Image', frame)
+                if AI_flag:
+                    # Perform inference
+                    results = model(frame)
+                    detections = results.xyxy[0].numpy()  # Get the detections as a NumPy array
+
+                    for detection in detections:
+                        x1, y1, x2, y2, confidence, class_idx = detection
+                        class_name = model.names[int(class_idx)]
+
+                        if class_name == target_object:
+                            # Convert bounding box coordinates to integers
+                            x1, y1, x2, y2 = map(int, [x1, y1, x2, y2])
+                            print(x1, x2, y1, y2)
+
+                            # Draw a bounding box for the target object
+                            cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
+                            cv2.putText(frame, f"{class_name} {confidence:.2f}", (x1, y1 - 10),
+                                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
+                            
+                            # Show the frame
+                            cv2.imshow("Object Detection", frame)
+
+                            height, width, _ = frame.shape  # height is the number of rows, width is the number of columns
+
+                            # The boundaries are:
+                            center_frame = (width/2, height/2)
+                            center_object = ((x1+x2)/2, (x2+y2)/2)
+
+                            surface_frame = width * height
+                            surface_object = (x2-x1) * (y2-y1)  
+
+                            global state_for_commands
+                                # Determine the position
+                            if center_object[0] < center_frame[0] and 0.7* surface_frame == surface_object:
+                                state_for_commands = 0b0100 #left
+                            elif center_object[0] > center_frame[0] and 0.7* surface_frame == surface_object:
+                                state_for_commands = 0b0001 #right
+                            elif center_object[0] == center_frame[0] and 0.7* surface_frame > surface_object:
+                                state_for_commands = 0b1000 #forward
+                            elif center_object[0] == center_frame[0] and 0.7* surface_frame < surface_object:
+                                state_for_commands = 0b0010 #backward
+                            elif center_object[0] < center_frame[0] and 0.7* surface_frame > surface_object:
+                                state_for_commands = 0b1100 #left-forward
+                            elif center_object[0] < center_frame[0] and 0.7* surface_frame < surface_object:
+                                state_for_commands = 0b0110 #left-backwards
+                            elif center_object[0] > center_frame[0] and 0.7* surface_frame > surface_object:
+                                state_for_commands = 0b1100 #right-forward
+                            elif center_object[0] > center_frame[0] and 0.7* surface_frame < surface_object:
+                                state_for_commands = 0b0011 #right-backwards
+                            elif center_object[0] - center_frame[0] and 0.7* surface_frame < surface_object:
+                                state_for_commands = 0b0000
+                        else:
+                            state_for_commands = 0b0000
+                else:
+                    cv2.imshow('Received Image', frame)
 
 
             # Exit the loop if 'q' is pressed
@@ -121,15 +187,16 @@ def commands(server_ip):
 
 
     # Function to update the state when a key is pressed
-    def press_key(key):
+    def press_key(key = None):
         global state_for_blitz
         global state_for_commands
         global state_for_commands_1 
         nonlocal client_connected
         global repeat
-        if key in key_map_commands:
-            state_for_commands |= key_map_commands[key]  # Set the bit for the key
-            duration = timedelta(seconds=0.1) #schimbat de curand 
+        if key in key_map_commands or AI_flag == True:
+            if AI_flag == False:
+                state_for_commands |= key_map_commands[key]  # Set the bit for the key
+            duration = timedelta(seconds=0.2) #schimbat de curand 
             now = datetime.now()
             if state_for_commands != state_for_commands_1 or now - repeat > duration:
                 repeat = now
@@ -157,7 +224,7 @@ def commands(server_ip):
             try:
                 if client_connected:
                     client_socket.sendall((format(state_for_commands, '04b') + '\n').encode('utf-8'))
-                    time.sleep(0.1)
+                    time.sleep(0.2)
                     print(f"Message {state_for_commands} was sent")
             except (BrokenPipeError, ConnectionResetError):
                 print("Client disconnected during release_key.")
@@ -168,9 +235,12 @@ def commands(server_ip):
 
     def code_moves(key1):
         # Set up event listeners for each key
-        for key in key1.keys():
-            keyboard.on_press_key(key, lambda e, k=key: press_key(k))
-            keyboard.on_release_key(key, lambda e, k=key: release_key(k))
+        if AI_flag == True:
+            press_key()
+        else:
+            for key in key1.keys():
+                keyboard.on_press_key(key, lambda e, k=key: press_key(k))
+                keyboard.on_release_key(key, lambda e, k=key: release_key(k))
 
         # Wait for 'esc' to exit
         keyboard.wait('esc')
@@ -214,10 +284,17 @@ def blitz(server_ip):
 
     # Function to update the state when a key is pressed
     def press_key(key):
-        if key in key_map:
-            client_socket.sendall((format(trigger, '04b') + '\n').encode('utf-8'))
-            time.sleep(0.1)
-            print(f"Message {trigger} was sent")
+        nonlocal client_socket
+        try:
+            if key in key_map:
+                client_socket.sendall((format(trigger, '04b') + '\n').encode('utf-8'))
+                time.sleep(0.1)
+                print(f"Message {trigger} was sent")
+        except (BrokenPipeError, ConnectionResetError):
+            print("Client disconnected during release_key.")
+            client_socket.close()
+            client_socket, client_address = server_socket.accept()
+            print(f"Reconnected to {client_address}")
 
     def code_moves(key1):
         # Set up event listeners for each key
