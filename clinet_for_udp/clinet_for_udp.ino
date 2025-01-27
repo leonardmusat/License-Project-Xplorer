@@ -9,7 +9,7 @@ const char* password = "12345678";
 // Server IP and port (replace with your server's local IP and UDP port)
 const char* serverIP = "192.168.100.37";
 const int serverPort1 = 8888;
-const int serverPort2 = 8889;
+const int serverPort2 = 8887;
 const int CHUNK_LENGTH = 1024; // Set your chunk size
 
 // Create a UDP object
@@ -19,6 +19,7 @@ WiFiClient client;
 // Frame buffer and settings
 camera_fb_t* fb = NULL;
 boolean connected = false;
+int flash = 0;
 
 // ESP32-CAM pin definitions
 #define PWDN_GPIO_NUM    32
@@ -39,6 +40,8 @@ boolean connected = false;
 #define VSYNC_GPIO_NUM   25
 #define HREF_GPIO_NUM    23
 #define PCLK_GPIO_NUM    22
+
+#define IN1 4  // Motor A
 
 void sendPacketData(const char* buf, uint16_t len, uint16_t chunkLength);
 
@@ -105,8 +108,10 @@ void setup() {
     Serial.println("Connection to server failed");
 }
 
+  pinMode(IN1, OUTPUT);
+
    xTaskCreate(UDP_stream, "Stream", 4096, NULL, 1, NULL);
-   xTaskCreate(commands, "commands", 4096, NULL, 1, NULL);
+   xTaskCreate(blitz, "commands", 4096, NULL, 1, NULL);
 }
 
 void loop(){
@@ -143,7 +148,7 @@ void UDP_stream(void *parameter) {
   }
 }
 
-void commands(void *parameter){
+void blitz(void *parameter){
   while (true){
       if (client.connected()) {
     // Check if the client is connected
@@ -160,70 +165,20 @@ void commands(void *parameter){
           Serial.print("Converted command: ");
           Serial.println(command, BIN);  // Print it in binary form to verify
 
-          // You can now check each bit or take action based on the command value
-          switch (command) {
-              case 0b1000:  // Only 'w' (forward)
-                  Serial.println("Move Forward");
-                  // Move forward code here
-                  break;
-              
-              case 0b0100:  // Only 'a' (left)
-                  Serial.println("Move Left");
-                  // Move left code here
-                  break;
-
-              case 0b0010:  // Only 's' (backward)
-                  Serial.println("Move Backward");
-                  // Move backward code here
-                  break;
-
-              case 0b0001:  // Only 'd' (right)
-                  Serial.println("Move Right");
-                  // Move right code here
-                  break;
-
-              case 0b1010:  // 'w' and 's' (forward and backward simultaneously, could represent stop or no movement)
-                  Serial.println("Stop or No Movement");
-                  // Stop or no movement code here
-                  break;
-
-              case 0b1001:  // 'w' and 'd' (forward and right)
-                  Serial.println("Move Forward-Right");
-                  // Move forward-right code here
-                  break;
-
-              case 0b0110:  // 'a' and 's' (left and backward)
-                  Serial.println("Move Backward-Left");
-                  // Move backward-left code here
-                  break;
-
-              case 0b1100:  // 'w' and 'a' (forward and left)
-                  Serial.println("Move Forward-Left");
-                  // Move forward-left code here
-                  break;
-
-              case 0b0011:
-                  Serial.println("Move Backward-Right");
-                  // Move forward-left code here
-                  break;
-
-              case 0b1111:  // All keys pressed (e.g., special behavior or emergency stop)
-                  Serial.println("Emergency Stop or Special Behavior");
-                  // Special behavior code here
-                  break;
-
-              // Add more cases as needed for specific combinations
-              default:
-                  Serial.println("No Movement");
-                  // Default code here (e.g., stop)
-                  break;
+          if (command == 15 && flash == 0){
+            digitalWrite(IN1, HIGH);
+            flash = 1;
+          }
+          else if (command == 15 && flash == 1){
+            digitalWrite(IN1, LOW);
+            flash = 0;
           }
         }
-
     }
     else {
         // Try to reconnect if the connection was lost
         Serial.println("Disconnected from server, trying to reconnect...");
+        Serial.println(serverPort2);
         if (client.connect(serverIP, serverPort2)) {
           Serial.println("Reconnected to the server");
         } else {

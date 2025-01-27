@@ -3,10 +3,11 @@
 #define sound_speed 0.034f
 
 // Replace these with your network credentials
-const char* ssid = "DIGI-RauT";
-const char* password = "mD9aB8b7";
+zaadddddddddddddddddddddddddddddddddddddddddddaaaaaaaaaaaddddddddddddddddddddddddddddddddddddddddddddddddddddswssssdwwwwwwwwwwwwwwwwssssssssssssssdwwwwwwwwwwwwwwwwwssssssss
+
+// Server IP and port (replace with your server's local IP and UDP port)
+const char* serverIP = "192.168.100.37";
 const int serverPort = 8889;
-const char* serverIP = "192.168.100.47";
 
 WiFiClient client;
 
@@ -15,17 +16,17 @@ int motor1Pin2 = 26;
 int enable1Pin = 25; 
 int motor2Pin1 = 4; 
 int motor2Pin2 = 5; 
-int enable2Pin = 16; 
+int enable2Pin = 32; 
 int motor3Pin1 = 17; 
 int motor3Pin2 = 18; 
-int enable3Pin = 19; 
+int enable3Pin = 33; 
 int motor4Pin1 = 21; 
 int motor4Pin2 = 22; 
 int enable4Pin = 23; 
 
 int trigPin = 12;
 int echoPin = 13;
-int trigPin_left = 0;
+int trigPin_left = 19;
 int echoPin_left = 2;
 
 long duration;
@@ -196,18 +197,18 @@ void loop(){
                 break;
               case 0b0101:
                 //turn around
-                digitalWrite(enable1Pin, HIGH);
-                digitalWrite(motor1Pin1, LOW);
-                digitalWrite(motor1Pin2, HIGH);
+                digitalWrite(enable1Pin, LOW);
+                digitalWrite(motor1Pin1, HIGH);
+                digitalWrite(motor1Pin2, LOW);
                 digitalWrite(enable2Pin, HIGH);
-                digitalWrite(motor2Pin1, HIGH);
-                digitalWrite(motor2Pin2, LOW);
+                digitalWrite(motor2Pin1, LOW);
+                digitalWrite(motor2Pin2, HIGH);
                 digitalWrite(enable3Pin, HIGH);
-                digitalWrite(motor3Pin1, HIGH);
-                digitalWrite(motor3Pin2, LOW);
-                digitalWrite(enable4Pin, HIGH);
-                digitalWrite(motor4Pin1, LOW);
-                digitalWrite(motor4Pin2, HIGH);
+                digitalWrite(motor3Pin1, LOW);
+                digitalWrite(motor3Pin2, HIGH);
+                digitalWrite(enable4Pin, LOW);
+                digitalWrite(motor4Pin1, HIGH);
+                digitalWrite(motor4Pin2, LOW);
               case 0b1001:
                 //FORWARD-RIGHT
                 digitalWrite(enable1Pin, HIGH);

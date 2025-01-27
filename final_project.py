@@ -12,7 +12,7 @@ import sys
 import torch
 
 # Set the server IP and port
-ip = "192.168.100.40"  # Listen on all available interfaces
+ip = "192.168.100.37"  # Listen on all available interfaces
 state_for_commands = 0b00
 state_for_commands_1 = 0b00
 repeat = datetime.now()
@@ -234,11 +234,8 @@ def commands(server_ip):
                 #reconnect_client(client_socket, client_address, client_connected, server_socket)
 
     def code_moves(key1):
-        # Set up event listeners for each key
-        if AI_flag == True:
-            press_key()
-        else:
-            for key in key1.keys():
+        # Set up event listeners for each key       
+        for key in key1.keys():
                 keyboard.on_press_key(key, lambda e, k=key: press_key(k))
                 keyboard.on_release_key(key, lambda e, k=key: release_key(k))
 
@@ -249,8 +246,12 @@ def commands(server_ip):
     try:
 
         while not stop_flag:
-            code_moves(key_map_commands)
-            time.sleep(0.1)  # Prevent high CPU usage
+            if AI_flag == True:
+                press_key()
+                time.sleep(0.1)
+            else:
+                code_moves(key_map_commands)
+                time.sleep(0.1)  # Prevent high CPU usage
 
     except Exception as e:
         print(f"Error: {e}")
