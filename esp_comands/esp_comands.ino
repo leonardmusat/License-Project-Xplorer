@@ -3,7 +3,8 @@
 #define sound_speed 0.034f
 
 // Replace these with your network credentials
-zaadddddddddddddddddddddddddddddddddddddddddddaaaaaaaaaaaddddddddddddddddddddddddddddddddddddddddddddddddddddswssssdwwwwwwwwwwwwwwwwssssssssssssssdwwwwwwwwwwwwwwwwwssssssss
+const char* ssid = "DIGI-AG";
+const char* password = "12345678";
 
 // Server IP and port (replace with your server's local IP and UDP port)
 const char* serverIP = "192.168.100.37";
